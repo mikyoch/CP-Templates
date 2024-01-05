@@ -1,0 +1,73 @@
+#include <stdio.h>
+#include <algorithm>
+#include <string>
+#include <vector>
+using namespace std;
+ 
+struct line{
+	long long a,b;
+	long long val(int x){return a * x + b;}
+}X[200200];
+ 
+const int lim = 1000000;
+struct node{
+	node(){ l = r = nullptr; d = nullptr; }
+	node *l, *r; line *d;
+}root;
+node *roota = &root;
+ 
+void push(node* &n, line *now, int l, int r)
+{
+	if (!n) n = new node;
+ 
+	auto &nxt = n->d;
+	if (nxt == nullptr){
+		nxt = now;
+		return;
+	}
+ 
+	int m = (l + r) / 2;
+	bool u = nxt->val(l) > now->val(l);
+	bool v = nxt->val(m+1) > now->val(m+1);
+ 
+	if (v) swap(now,nxt);
+	if (l == r);
+	else if (u ^ v) push(n->l, now, l, m);
+	else push(n->r, now, m+1, r);
+}
+ 
+long long pop(node* n, int t, int l, int r)
+{
+	long long res = 9e18;
+ 
+	if (auto nxt = n->d) res = nxt->val(t);
+ 
+	int m = (l + r) / 2;
+	if (l <= t && t <= m){
+		if (n->l) res = min(res,pop(n->l,t,l,m));
+	}
+	else{
+		if (n->r) res = min(res,pop(n->r,t,m+1,r));
+	}
+ 
+	return res;
+}
+ 
+int N; long long C,H[200200],D[200200];
+ 
+int main()
+{
+	scanf ("%d %lld",&N,&C);
+	for (int i=1;i<=N;i++){
+		scanf ("%lld",&H[i]);
+ 
+		long long val = i == 1 ? 0 : pop(roota, H[i], 1, lim) + H[i] * H[i];
+		D[i] = val;
+		X[i] = {-2ll*H[i], D[i]+H[i]*H[i]+C};
+		push(roota, X+i, 1,lim);
+	}
+ 
+	printf ("%lld\n",D[N]);
+ 
+	return 0;
+}

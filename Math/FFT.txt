@@ -1,0 +1,168 @@
+#include <bits/stdc++.h>
+using namespace std;
+/* 
+	Copied from Gennady Korotkevitch's template
+*/
+
+const int N = 1 << 19;
+
+namespace FFT {
+	using float_type = long double;
+	struct Complex {
+		float_type x, y;
+		Complex(float_type x = 0, float_type y = 0) : x(x), y(y) {}
+		Complex& operator+=(const Complex &rhs) {
+			x += rhs.x, y += rhs.y;
+			return *this;
+		}
+		Complex& operator-=(const Complex &rhs) {
+			x -= rhs.x, y -= rhs.y;
+			return *this;
+		}
+		Complex& operator*=(const Complex &rhs) {
+			float_type tx = x * rhs.x - y * rhs.y, ty = x * rhs.y + y * rhs.x;
+			x = tx, y = ty;
+			return *this;
+		}
+		Complex operator!() const {
+			return {x, -y};
+		}
+	} f[N], g[N], h[N];
+	Complex operator+(const Complex &lhs, const Complex &rhs) {
+		return Complex(lhs) += rhs;
+	}
+	Complex operator-(const Complex &lhs, const Complex &rhs) {
+		return Complex(lhs) -= rhs;
+	}
+	Complex operator*(const Complex &lhs, const Complex &rhs) {
+		return Complex(lhs) *= rhs;
+	}
+	const float_type PI = acos(-1);
+	void FFT(Complex* __first, Complex* __last, int D) {
+		int N = __last - __first;
+		for (int i = 1, j = 0; i < N - 1; i++) {
+			for (int k = N / 2; (j ^= k) < k; k >>= 1);
+			if (i < j) {
+				swap(__first[i], __first[j]);
+			}
+		}
+		for (int n = 1; n < N; n <<= 1) {
+			Complex *a = __first, *b = __first + n;
+			Complex w = {cos(PI / n), sin(D * PI / n)}, x, cur = 1;
+			for (int i = 0; i < N; i += n << 1, cur = 1) {
+				for (int j = 0; j < n; j++, a++, b++, cur *= w) {
+					(x = cur) *= *b;
+					*b = *a - x; *a += x;
+				}
+				if (i + (n << 1) < N) {
+					a += n;
+					b += n;
+				}
+			}
+		}
+		if (D < 0) {
+			for (int i = 0; i < N; i++) {
+				__first[i].x /= N;
+				__first[i].y /= N;
+			}
+		}
+	}
+	template<typename T>
+	void multiply(T* a, T* b, int n, int P) {
+		for (int i = 0; i < n; i++) {
+			f[i] = {(int)a[i] >> 15, (int)a[i] & 32767};
+		}
+		FFT(f, f + n, 1);
+		for (int i = 0; i < n; i++) {
+			int j = i ? n - i : 0;
+			g[i] = ((!(f[j] * f[j])) - f[i] * f[i]) * Complex(0, 0.5);
+		}
+		FFT(g, g + n, -1);
+		for (int i = 0; i < n; i++) {
+			b[i] = ((long long)(g[i].x + 0.5) % P << 15) % P;
+		}
+		for (int i = 0; i < n; i++) {
+			int j = i ? n - i : 0;
+			g[i] = (!(f[j] * f[j]) + f[i] * f[i]) * Complex(-0.25, 0.25) + !f[j] * f[i] * Complex(0.5, 0.5);
+		}
+		FFT(g, g + n, -1);
+		for (int i = 0; i < n; i++) {
+			b[i] = (b[i] + (long long)(g[i].x + 0.5) + (((long long)(g[i].y + 0.5) % P) << 30)) % P;
+		}
+	}
+	template<typename T> // T can be int or ModInt
+	void multiply(T* a, T* b, T* c, int n, int P) {
+		for (int i = 0; i < n; i++) {
+			f[i] = {(int)a[i] >> 15, (int)a[i] & 32767};
+			g[i] = {(int)b[i] >> 15, (int)b[i] & 32767};
+		}
+		FFT(f, f + n, 1);
+		FFT(g, g + n, 1);
+		for (int i = 0; i < n; i++) {
+			int j = i ? n - i : 0;
+			h[i] = (!(f[j] * g[j]) - f[i] * g[i]) * Complex(0, 0.5);
+		}
+		FFT(h, h + n, -1);
+		for (int i = 0; i < n; i++) {
+			c[i] = (((long long)(h[i].x + 0.5) % P) << 15) % P;
+		}
+		for (int i = 0; i < n; i++) {
+			int j = i ? n - i : 0;
+			h[i] = (!(f[j] * g[j]) + f[i] * g[i]) * Complex(-0.25, 0.25) + (!f[j] * g[i] + f[i] * !g[j]) * Complex(0.25, 0.25);
+		}
+		FFT(h, h + n, -1);
+		for (int i = 0; i < n; i++) {
+			c[i] = (long long)(c[i] + (long long)(h[i].x + 0.5) + (((long long)(h[i].y + 0.5) % P) << 30)) % P;
+		}
+	}
+};
+
+ModInt a[N], b[N], c[N], f[N], g[N];
+
+ModInt C(int n, int m) {
+	if (m > n || m < 0) return 0;
+	return f[n] * g[m] * g[n - m];
+}
+
+int main() {
+	ios::sync_with_stdio(0);
+	cin.tie(0); cout.tie(0);
+	int n, m; cin >> n >> m;
+	vector<vector<int>> adj(n + 1);
+	for (int i = 0; i <= n; i++) {
+		f[i] = i == 0 ? 1 : f[i - 1] * i;
+		g[i] = i == 0 ? 1 : g[i - 1] / i;
+	}
+	for (int i = 1; i < n; i++) {
+		int u, v; cin >> u >> v;
+		adj[u].push_back(v);
+		adj[v].push_back(u);
+	}
+	vector<int> sz(n + 1);
+	vector<int> cnt(n + 1);
+	function<void(int, int)> dfs = [&](int u, int p) {
+		sz[u] = 1;
+		for (int v : adj[u]) {
+			if (v == p) continue;
+			dfs(v, u);
+			sz[u] += sz[v];
+			cnt[sz[v]]++;
+		}
+		if (sz[u] < n) {
+			cnt[n - sz[u]]++;
+		}
+	};
+	dfs(1, 0);
+	for (int i = m / 2 + 1; i <= m; i++) {
+		a[i] = C(m, i);
+	}
+	for (int i = 0; i <= n - m; i++) {
+		b[i] = C(n - m, i);
+	}
+	FFT::multiply(a, b, c, 1 << (32 - __builtin_clz(n)), P);
+	ModInt ans = 0;
+	for (int i = 1; i < n; i++) {
+		ans += (ModInt)cnt[i] * c[i] / C(n, i);
+	}
+	return cout << n - ans << endl, 0;
+}

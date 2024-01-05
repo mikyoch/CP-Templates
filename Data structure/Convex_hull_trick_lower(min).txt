@@ -1,0 +1,86 @@
+#ifndef BZ
+#pragma GCC optimize "-O3"
+#endif
+#include <bits/stdc++.h>
+ 
+#define FASTIO
+#define ALL(v) (v).begin(), (v).end()
+#define rep(i, l, r) for (int i = (l); i < (r); ++i)
+ 
+#ifdef FASTIO
+#define scanf abacaba
+#define printf abacaba
+#endif
+ 
+typedef long long ll;
+typedef long double ld;
+typedef unsigned long long ull;
+ 
+using namespace std;
+ 
+struct Line {
+    ll k, b;
+ 
+    Line() = default;
+ 
+    Line(ll K, ll B)
+        : k(K)
+        , b(B)
+    {
+    }
+ 
+    ll at(ll x) {
+        return k * x + b;
+    }
+};
+ 
+ld inter(const Line& x, const Line& y) {
+    return 1.0 * (x.b - y.b) / (y.k - x.k);
+}
+ 
+const int MX = 200 * 1000 + 7;
+ 
+Line st[MX];
+int stp = 0;
+int opt = 0;
+ 
+void add(const Line& l) {
+    while (stp >= 2 && inter(st[stp - 2], l) <= inter(st[stp - 2], st[stp - 1])) {
+        stp--;
+    }
+    opt = min(opt, stp - 1);
+    opt = max(opt, 0);
+    st[stp++] = l;
+}
+ 
+ll gt(ll x) {
+    while (opt + 1 < stp && st[opt + 1].at(x) < st[opt].at(x)) {
+        opt++;
+    }
+    return st[opt].at(x);
+}
+ 
+ll h[MX];
+ll f[MX];
+int main() {
+#ifdef FASTIO
+    ios_base::sync_with_stdio(false), cin.tie(0), cout.tie(0);
+#endif
+    int n;
+    ll C;
+    cin >> n >> C;
+    for (int i = 0; i < n; i++) {
+        cin >> h[i];
+    }
+ 
+    f[0] = 0;
+    add(Line(-2ll * h[0], h[0] * h[0]));
+    for (int i = 1; i < n; i++) {
+        f[i] = gt(h[i]) + h[i] * h[i] + C;
+        add(Line(-2ll * h[i], f[i] + h[i] * h[i]));
+    }
+ 
+    cout << f[n - 1] << "\n";
+    return 0;
+}
+ 

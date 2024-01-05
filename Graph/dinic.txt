@@ -1,0 +1,109 @@
+#include <bits/stdc++.h>
+ 
+#ifdef LOCAL
+#include "debug-template.hpp"
+#endif
+ 
+using namespace std;
+ 
+#ifdef LOCAL
+#define debug(...) cerr << "[" << #__VA_ARGS__ << "]:", debug_out(__VA_ARGS__)
+#else
+#define debug(...) 42
+#endif
+ 
+namespace Dinic {
+	typedef int F;
+ 
+	const F INF = 1e9+1e8;
+ 
+	const int N = 22000;
+	const int M = 222000;
+ 
+	int fst[N], nxt[M], to[M];
+ 
+	F cap[M];
+ 
+	int dis[N], q[N], ptr[N];
+	int V, E;
+ 
+	void init() {
+		memset(fst, -1, sizeof fst);
+		V = E = 0;
+	}
+ 
+	inline int add_node() { V++; return V-1; }
+ 
+	inline void add_edge(int u, int v, F c) {
+		to[E] = v, cap[E] = c, nxt[E] = fst[u], fst[u] = E++;
+		to[E] = u, cap[E] = 0, nxt[E] = fst[v], fst[v] = E++;
+	}
+ 
+	inline bool bfs(int S, int T, int n) {
+		memset(dis, -1, sizeof(int) * n);
+		int h = 0, t = 0;
+		dis[S] = 0, q[t++] = S;
+		while (h < t) {
+			int u = q[h++];
+			for (int e = fst[u]; ~e; e = nxt[e]) if (cap[e] > 0 && dis[to[e]] == -1) {
+				dis[to[e]] = dis[u] + 1, q[t++] = to[e];
+				if (to[e] == T) return 1;
+			}
+		}
+		return (dis[T] != -1);
+	}
+ 
+	F dfs(int u, int T, F f) {
+		if (u == T) return f;
+		for (int &e = ptr[u]; ~e; e = nxt[e]) if (cap[e] > 0 && dis[to[e]] > dis[u]) {
+			F ret = dfs(to[e], T, min(f, cap[e]));
+			if (ret > 0) {
+				cap[e] -= ret, cap[e ^ 1] += ret;
+				return ret;
+			}
+		}
+		return 0;
+	}
+ 
+	F max_flow(int S, int T, int n = V) {
+		F ret = 0;
+		while (bfs(S, T, n)) {
+			memcpy(ptr, fst, sizeof(int) * n);
+			for (F cur; (cur = dfs(S, T, INF)) > 0; ret += cur);
+		}
+		return ret;
+	}
+ 
+	F min_cut(int S, int T, int *ans, int n = V) {
+		F ret = max_flow(S, T, n);
+		for (int i = 0; i < n; i++) ans[i] = (dis[i] != -1);
+	}
+};
+ 
+int main() {
+	ios::sync_with_stdio(0);
+	cin.tie(0); cout.tie(0);
+	int n, m; cin >> n >> m;
+	vector<tuple<int, int, int>> E;
+	for (int i = 0; i < m; i++) {
+		int u, v, w; cin >> u >> v >> w;
+		u--, v--;
+		E.emplace_back(w, u, v);
+	}
+	sort(E.begin(), E.end());
+	Dinic::init();
+	for (int i = 0; i < n; i++) {
+		Dinic::add_edge(0, i + 1, 1);
+		Dinic::add_edge(i + n + 1, n + n + 1, 1);
+	}
+	int ret = 0;
+	for (int i = 0; i < m; i++) {
+		Dinic::add_edge(get<1>(E[i]) + 1, get<2>(E[i]) + n + 1, 1);
+		ret += Dinic::max_flow(0, n + n + 1, n + n + 2);
+		if (ret == n) {
+			cout << get<0>(E[i]) << '\n';
+			return 0;
+		}
+	}
+	return cout << -1 << '\n', 0;
+}

@@ -1,0 +1,258 @@
+#include <iostream>
+#include <algorithm>
+#include <vector>
+#include <string>
+
+#ifdef ONLINE_JUDGE
+#define endl '\n'
+#endif
+
+using namespace std;
+
+
+struct Node {
+    Node *l, *r, *p;
+    int cnt;
+    char c;
+    bool rev;
+
+    Node(char c_) : c(c_) {
+        cnt = 1;
+        l = r = p = nullptr;
+        rev = false;
+    }
+
+    Node(char c_, Node *p_): c(c_), p(p_) {
+        cnt = 1;
+        l = r = nullptr;
+        rev = false;
+    }
+
+    void propagate() {
+        if (rev) {
+            if (l) l->rev = !l->rev;
+            if (r) r->rev = !r->rev;
+            swap(l, r);
+            rev = false;
+        }
+    }
+
+    void prop_from_top() {
+        if (p) p->prop_from_top();
+        propagate();
+    }
+
+    void update() {
+        cnt = 1;
+        if (l) {
+            cnt += l->cnt;
+        }
+        if (r) {
+            cnt += r->cnt;
+        }
+    }
+};
+
+
+struct SplayTree {
+    int n;
+    Node *root;
+
+    SplayTree(char *s) : n(1) {
+        root = new Node(s[0]);
+        Node *node = root;
+        for (int i = 1; s[i]; i++) {
+            node->r = new Node(s[i], node);
+            node = node->r;
+            n++;
+        }
+        while (node->p) {
+            node = node->p;
+            node->update();
+        }
+    }
+
+    void rotate(Node* x) {
+        Node *p = x->p;
+        Node *b;
+        if (x == p->l) {
+            p->l = b = x->r;
+            x->r = p;
+        } else {
+            p->r = b = x->l;
+            x->l = p;
+        }
+        x->p = p->p;
+        p->p = x;
+        if (b)
+            b->p = p;
+        if (x->p) {
+            if (x->p->l == p) 
+                x->p->l = x;
+            else 
+                x->p->r = x;
+        }
+        else {
+            root = x;
+        }
+        p->update();
+        x->update();
+    }
+
+    void splay(Node* x) {
+        while (x->p) {
+            Node *p = x->p;
+            Node *g = p->p;
+            if (g) {
+                if ((x == p->l) == (p == g->l)) 
+                    rotate(p);
+                else 
+                    rotate(x);
+            }
+            rotate(x);
+        }
+    }
+
+    Node* find_kth(int k) {
+        Node *x = root;
+        while (true) {
+            x->propagate();
+            int cnt = (x->l ? x->l->cnt : 0);
+            if (k == cnt) break;
+            else if (k < cnt) x = x->l;
+            else {
+                k -= cnt+1;
+                x = x->r;
+            }
+        }
+        splay(x);
+        return x;
+    }
+
+    Node* interval(int st, int ed) {
+        if (st > 0 && ed < n-1) {
+            find_kth(st-1);
+            Node *tmp = root;
+            root = root->r;
+            root->p = nullptr;
+            find_kth(ed-st+1);
+            tmp->r = root;
+            root->p = tmp;
+            root = tmp;
+            // cout << "root->r->l" << endl;
+            return root->r->l;
+        }
+        else if (st > 0) {
+            find_kth(st-1);
+            // cout << "root->r" << endl;
+            return root->r;
+        }
+        else if (ed < n-1) {
+            find_kth(ed+1);
+            // cout << "root->l" << endl;
+            return root->l;
+        }
+        // cout << "root" << endl;
+        return root;
+    }
+
+    void reverse(int st, int ed) {
+        // cout << "rev [" << st << ", " << ed << "]" << endl;
+        Node *x = interval(st, ed);
+        x->rev = !x->rev;
+    }
+
+    Node *rightmost() {
+        Node *node = root;
+        while (true) {
+            node->propagate();
+            if (node->r)
+                node = node->r;
+            else
+                break;
+        }
+        return (node);
+    }
+
+    int make_suffix(char *s) {
+        int len = 1;
+        Node *x = new Node(s[0]);
+        Node *node = x;
+        for (int i = 1; s[i]; i++) {
+            node->r = new Node(s[i], node);
+            node = node->r;
+            len++;
+        }
+        Node *right = rightmost();
+        // cout << "rightmost " << right->c << endl;
+        right->r = x;
+        x->p = right;
+        n += len;
+        while (node->p) {
+            node = node->p;
+            node->update();
+        }
+        splay(x);
+        // cout << "root cnt " << root->cnt << endl;
+        return len;
+    }
+
+    void insert(int idx, char *s) {
+        int len = make_suffix(s);
+        reverse(idx, n-1);
+        reverse(idx, idx + len - 1);
+        if (idx + len < n)
+            reverse(idx + len, n-1);
+    }
+
+};
+
+
+
+void traverse(Node *x) {
+    x->propagate();
+    if (x->l)
+        traverse(x->l);
+    cout << x->c;
+    if (x->r)
+        traverse(x->r);
+}
+int st, ed;
+char s[200010];
+string q;
+
+
+int main() {
+
+#ifdef ONLINE_JUDGE
+    ios_base::sync_with_stdio(false);
+    cin.tie(nullptr);
+#endif
+
+    cin >> s;
+    SplayTree tree(s);
+
+    while (true) {
+        cin >> q;
+        if (q == "END") {
+            break;
+        }
+        
+        if (q == "I") {
+            cin >> s >> st;
+            // tree.make_suffix(s);
+            tree.insert(st, s);
+        }
+        else if (q == "P") {
+            cin >> st >> ed;
+            Node *x = tree.interval(st, ed);
+            traverse(x);
+            cout << endl;
+        }
+
+        // cout << "total: " << tree.n << ", ";
+        // traverse(tree.root);
+        // cout << endl;
+    }
+
+}
